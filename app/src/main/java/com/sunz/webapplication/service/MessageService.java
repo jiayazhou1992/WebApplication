@@ -42,6 +42,7 @@ public class MessageService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) return super.onStartCommand(intent, flags, startId);
         String cookie = intent.getStringExtra("cookie");
         Log.i("messageservice", "--------" + isStart);
         if (!TextUtils.isEmpty(cookie)&&!isStart) {

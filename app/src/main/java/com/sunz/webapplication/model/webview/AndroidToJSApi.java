@@ -46,11 +46,16 @@ public class AndroidToJSApi {
                 .subscribe(new Consumer<Boolean>() {
                     @Override
                     public void accept(Boolean aBoolean) throws Exception {
-                        if (aBoolean){
+                        if (aBoolean) {
                             Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone));
                             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             activity.startActivity(intent);
                         }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+
                     }
                 });
 
@@ -81,8 +86,8 @@ public class AndroidToJSApi {
                                 public void ok(File file) {
                                     dialog.dismiss();
                                     Toast.makeText(activity, "下载成功", Toast.LENGTH_SHORT).show();
-                                    if (activity!=null)
-                                        FunctionUtils.installNormal(activity,file.getPath());
+                                    if (activity != null)
+                                        FunctionUtils.installNormal(activity, file.getPath());
                                 }
 
                                 @Override
@@ -93,10 +98,15 @@ public class AndroidToJSApi {
 
                                 @Override
                                 public void onProgress(float progress, long total) {
-                                    dialog.setProgress((int) (progress*100));
+                                    dialog.setProgress((int) (progress * 100));
                                 }
                             });
                         }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+
                     }
                 });
     }
@@ -107,10 +117,15 @@ public class AndroidToJSApi {
                 .subscribe(new Consumer<Boolean>() {
                     @Override
                     public void accept(Boolean aBoolean) throws Exception {
-                        if (aBoolean){
+                        if (aBoolean) {
                             Intent intent = new Intent(activity, CaptureActivity.class);
                             activity.startActivityForResult(intent, activity.SWEEP_QRCODE);
                         }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+
                     }
                 });
 

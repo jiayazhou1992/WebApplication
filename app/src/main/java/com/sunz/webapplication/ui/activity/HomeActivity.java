@@ -1,5 +1,6 @@
 package com.sunz.webapplication.ui.activity;
 
+import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.Intent;
@@ -27,14 +28,19 @@ import com.sunz.webapplication.R;
 import com.sunz.webapplication.config.Config;
 import com.sunz.webapplication.model.webview.AndroidToJSApi;
 import com.sunz.webapplication.model.webview.MyWebChromeClient;
+import com.sunz.webapplication.presenter.HomePresenter;
 import com.sunz.webapplication.service.MessageService;
+import com.tbruyelle.rxpermissions2.RxPermissions;
 import com.uuzuche.lib_zxing.activity.CodeUtils;
+
+import io.reactivex.functions.Consumer;
 
 public class HomeActivity extends AppCompatActivity {
 
     private final int FILE_CHOOSER_RESULT_CODE = 1;//选择文件
     public final int SWEEP_QRCODE = 2;//扫描二维码
 
+    private HomePresenter homePresenter;
     private WebView webView;
     private AndroidToJSApi androidToJSApi;
     private MyWebChromeClient myWebChromeClient;
@@ -48,6 +54,7 @@ public class HomeActivity extends AppCompatActivity {
 
         locationClient = new LocationClient(getApplicationContext());
         locationClient.registerLocationListener(new MyLocationListener());
+        homePresenter = new HomePresenter(this);
 
         webView = (WebView) findViewById(R.id.home_webview);
         webView.setHorizontalScrollBarEnabled(false);//水平不显示
@@ -57,6 +64,28 @@ public class HomeActivity extends AppCompatActivity {
         initWebChromeClient(webView);
         addAndroidToJSApi(webView);
         webView.loadUrl(Config.home_url);
+
+        RxPermissions rxPermissions = new RxPermissions(HomeActivity.this);
+        rxPermissions.request(Manifest.permission.ACCESS_FINE_LOCATION
+                ,Manifest.permission.ACCESS_COARSE_LOCATION
+                ,Manifest.permission.ACCESS_WIFI_STATE
+                ,Manifest.permission.CHANGE_NETWORK_STATE
+                ,Manifest.permission.CHANGE_WIFI_STATE
+                ,Manifest.permission.READ_PHONE_STATE
+                ,Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS)
+                .subscribe(new Consumer<Boolean>() {
+                    @Override
+                    public void accept(Boolean aBoolean) throws Exception {
+                        if (aBoolean){
+                            locationClient.enableAssistantLocation(webView);
+                        }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+
+                    }
+                });
 
     }
 
@@ -90,16 +119,7 @@ public class HomeActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient(){
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                //开始载入页面调用的
-                if (!url.equals(Config.home_url)) {
-                    CookieManager cookieManager = CookieManager.getInstance();
-                    String cookieStr = cookieManager.getCookie(url);
-                    Log.i("activity", "--------" + cookieStr);
-                    Intent intent = new Intent();
-                    intent.setClass(HomeActivity.this, MessageService.class);
-                    intent.putExtra("cookie",cookieStr);
-                    startService(intent);
-                }
+
                 super.onPageStarted(view, url, favicon);
             }
             @Override
@@ -126,7 +146,17 @@ public class HomeActivity extends AppCompatActivity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                locationClient.enableAssistantLocation(webView);
+                //开始载入页面调用的
+                if (!url.equals(Config.home_url)) {
+                    CookieManager cookieManager = CookieManager.getInstance();
+                    String cookieStr = cookieManager.getCookie(url);
+                    Log.i("activity", "--------" + cookieStr);
+                    Intent intent = new Intent();
+                    intent.setClass(HomeActivity.this, MessageService.class);
+                    intent.putExtra("cookie",cookieStr);
+                    startService(intent);
+                    homePresenter.showVpn(webView);
+                }
                 super.onPageFinished(view, url);
             }
 
