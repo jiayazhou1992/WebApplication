@@ -30,7 +30,10 @@ import com.sunz.webapplication.model.webview.AndroidToJSApi;
 import com.sunz.webapplication.model.webview.MyWebChromeClient;
 import com.sunz.webapplication.presenter.HomePresenter;
 import com.sunz.webapplication.service.MessageService;
+import com.sunz.webapplication.widget.window.SetVpnWindow;
 import com.tbruyelle.rxpermissions2.RxPermissions;
+import com.topsec.sslvpn.IVPNHelper;
+import com.topsec.sslvpn.lib.VPNService;
 import com.uuzuche.lib_zxing.activity.CodeUtils;
 
 import io.reactivex.functions.Consumer;
@@ -46,6 +49,7 @@ public class HomeActivity extends AppCompatActivity {
     private MyWebChromeClient myWebChromeClient;
 
     private LocationClient locationClient;
+    private IVPNHelper ivpnHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +59,7 @@ public class HomeActivity extends AppCompatActivity {
         locationClient = new LocationClient(getApplicationContext());
         locationClient.registerLocationListener(new MyLocationListener());
         homePresenter = new HomePresenter(this);
+        ivpnHelper = VPNService.getVPNInstance(getApplicationContext());
 
         webView = (WebView) findViewById(R.id.home_webview);
         webView.setHorizontalScrollBarEnabled(false);//水平不显示
@@ -63,21 +68,25 @@ public class HomeActivity extends AppCompatActivity {
         initWebViewClient(webView);
         initWebChromeClient(webView);
         addAndroidToJSApi(webView);
-        webView.loadUrl(Config.home_url);
 
         RxPermissions rxPermissions = new RxPermissions(HomeActivity.this);
         rxPermissions.request(Manifest.permission.ACCESS_FINE_LOCATION
                 ,Manifest.permission.ACCESS_COARSE_LOCATION
                 ,Manifest.permission.ACCESS_WIFI_STATE
+                ,Manifest.permission.ACCESS_NETWORK_STATE
                 ,Manifest.permission.CHANGE_NETWORK_STATE
                 ,Manifest.permission.CHANGE_WIFI_STATE
                 ,Manifest.permission.READ_PHONE_STATE
-                ,Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS)
+                ,Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS
+                ,Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ,Manifest.permission.CAMERA
+                ,Manifest.permission.INTERNET)
                 .subscribe(new Consumer<Boolean>() {
                     @Override
                     public void accept(Boolean aBoolean) throws Exception {
                         if (aBoolean){
                             locationClient.enableAssistantLocation(webView);
+                            ivpnHelper.startService(HomeActivity.this,null);
                         }
                     }
                 }, new Consumer<Throwable>() {
@@ -86,6 +95,23 @@ public class HomeActivity extends AppCompatActivity {
 
                     }
                 });
+        webView.post(new Runnable() {
+            @Override
+            public void run() {
+                homePresenter.showVpn(webView, new SetVpnWindow.OnClickListener() {
+                    @Override
+                    public void onCancle() {
+                        webView.loadUrl(Config.home_url);
+                    }
+
+                    @Override
+                    public void onOk() {
+                        webView.loadUrl(Config.home_url);
+                    }
+                });
+
+            }
+        });
 
     }
 
@@ -155,7 +181,7 @@ public class HomeActivity extends AppCompatActivity {
                     intent.setClass(HomeActivity.this, MessageService.class);
                     intent.putExtra("cookie",cookieStr);
                     startService(intent);
-                    homePresenter.showVpn(webView);
+                    //homePresenter.showVpn(webView);
                 }
                 super.onPageFinished(view, url);
             }
@@ -216,7 +242,14 @@ public class HomeActivity extends AppCompatActivity {
             webView.destroy();
             webView = null;
         }
+
         locationClient.disableAssistantLocation();
+        if (SetVpnWindow.isLogin&&ivpnHelper!=null) {
+            ivpnHelper.logoutVOne();
+            SetVpnWindow.isLogin = false;
+        }
+        if (ivpnHelper!=null)
+            ivpnHelper.closeService();
         super.onDestroy();
     }
 
@@ -229,6 +262,7 @@ public class HomeActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        ivpnHelper.toGrantStartVpnService(requestCode);
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER_RESULT_CODE) {
             if (null == myWebChromeClient.getUploadMessage() && null == myWebChromeClient.getUploadMessageAboveL()) return;
@@ -287,10 +321,10 @@ public class HomeActivity extends AppCompatActivity {
     //重写onBackPressed()方法,继承自退出的方法
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()){
+        /*if (webView.canGoBack()){
             webView.goBack();
             return;
-        }
+        }*/
         // 判断时间间隔
         if (System.currentTimeMillis()- currentBackPressedTime > BACK_PRESSED_INTERVAL) {
             currentBackPressedTime = System.currentTimeMillis();

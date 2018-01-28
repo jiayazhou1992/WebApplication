@@ -1,6 +1,7 @@
 package com.sunz.webapplication.service;
 
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -15,6 +16,7 @@ import android.util.Log;
 
 import com.sunz.webapplication.R;
 import com.sunz.webapplication.model.bean.NewMessageBean;
+import com.sunz.webapplication.ui.activity.HomeActivity;
 import com.sunz.webapplication.utils.ACache;
 import com.sunz.webapplication.widget.http.HttpHelp;
 
@@ -86,13 +88,16 @@ public class MessageService extends Service {
             int i = 100;
             Log.i("showNotification","2-----------showNotification");
             for (NewMessageBean.DataBean dataBean : newMessageBean.getData()) {
-                if (aCache.getAsObject(dataBean.getId())==null&&(dataBean.getReadtime().equals("null")||TextUtils.isEmpty(dataBean.getReadtime()))) {
+                if (aCache.getAsObject(dataBean.getId())==null&&(!dataBean.getReadtime().equals("null")||TextUtils.isEmpty(dataBean.getReadtime()))) {
                     NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext());
                     builder.setContentTitle(dataBean.getMsgtitle());
                     builder.setSmallIcon(R.mipmap.ic_launcher_round);
                     builder.setLargeIcon(BitmapFactory.decodeResource(getApplicationContext().getResources(), R.mipmap.icon));
                     builder.setContentText(dataBean.getMsgcontent());
                     builder.setPriority(NotificationCompat.PRIORITY_DEFAULT);
+                    builder.setAutoCancel(true);
+                    PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(),0,new Intent(MessageService.this, HomeActivity.class),PendingIntent.FLAG_UPDATE_CURRENT);
+                    builder.setContentIntent(pendingIntent);
                     manager.notify(i, builder.build());
                     Log.i("showNotification","3-----------showNotification");
                     aCache.put(dataBean.getId(), dataBean);

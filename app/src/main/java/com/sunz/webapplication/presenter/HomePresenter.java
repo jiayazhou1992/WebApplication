@@ -17,9 +17,10 @@ public class HomePresenter {
         this.activity = activity;
     }
 
-    public void showVpn(View view){
+    public void showVpn(View view,SetVpnWindow.OnClickListener onClickListener){
         SetVpnWindow setVpnWindow = new SetVpnWindow(activity);
         setVpnWindow.show(view);
+        setVpnWindow.setOnCancleListener(onClickListener);
     }
 
 }
