@@ -69,7 +69,7 @@ public class HomeActivity extends AppCompatActivity {
         locationClient.setLocOption(initLocationClientOption());
         locationClient.registerLocationListener(new MyLocationListener());
         homePresenter = new HomePresenter(this);
-        ivpnHelper = VPNService.getVPNInstance(getApplicationContext());
+        //ivpnHelper = VPNService.getVPNInstance(getApplicationContext());
         if (ivpnHelper!=null)
             ivpnHelper.startService();
 
@@ -82,7 +82,7 @@ public class HomeActivity extends AppCompatActivity {
         initDownloadListener(webView);
         addAndroidToJSApi(webView);
 
-        webView.post(new Runnable() {
+        /*webView.post(new Runnable() {
             @Override
             public void run() {
                 homePresenter.showVpn(webView, new SetVpnWindow.OnClickListener() {
@@ -98,8 +98,8 @@ public class HomeActivity extends AppCompatActivity {
                 });
 
             }
-        });
-        //webView.loadUrl(Config.home_url);
+        });*/
+        webView.loadUrl(Config.home_url);
 
     }
 
@@ -283,21 +283,23 @@ public class HomeActivity extends AppCompatActivity {
             }
         }else if (requestCode == SWEEP_QRCODE&&resultCode == RESULT_OK){
             //处理扫描结果
+            ACache aCache = ACache.get(HomeActivity.this);
             if (null != data) {
                 Bundle bundle = data.getExtras();
                 if (bundle == null) {
+                    aCache.put(Config.aceche_Qrcode,"-1");
                     return;
                 }
                 if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_SUCCESS) {
                     String result = bundle.getString(CodeUtils.RESULT_STRING);
-                    ACache aCache = ACache.get(HomeActivity.this);
                     aCache.put(Config.aceche_Qrcode,result);
                     Toast.makeText(this, "解析结果:" + result, Toast.LENGTH_LONG).show();
                 } else if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_FAILED) {
                     Toast.makeText(this, "解析二维码失败", Toast.LENGTH_LONG).show();
-                    ACache aCache = ACache.get(HomeActivity.this);
                     aCache.put(Config.aceche_Qrcode,"-1");
                 }
+            }else {
+                aCache.put(Config.aceche_Qrcode,"-1");
             }
         }
     }
