@@ -7,12 +7,14 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
 
 import com.sunz.webapplication.config.Config;
 import com.sunz.webapplication.ui.activity.HomeActivity;
+import com.sunz.webapplication.utils.ACache;
 import com.sunz.webapplication.utils.FunctionUtils;
 import com.sunz.webapplication.widget.http.HttpHelp;
 import com.tbruyelle.rxpermissions2.RxPermissions;
@@ -71,7 +73,10 @@ public class AndroidToJSApi {
                         if (aBoolean) {
                             final ProgressDialog dialog = new ProgressDialog(activity);
                             dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-                            dialog.setMessage("下载安装包");
+                            if (path.endsWith(".apk"))
+                                dialog.setMessage("下载安装包");
+                            else
+                                dialog.setMessage("下载文件");
                             dialog.setButton(DialogInterface.BUTTON_NEGATIVE, "取消", new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
@@ -86,7 +91,7 @@ public class AndroidToJSApi {
                                 public void ok(File file) {
                                     dialog.dismiss();
                                     Toast.makeText(activity, "下载成功", Toast.LENGTH_SHORT).show();
-                                    if (activity != null)
+                                    if (activity != null&&path.endsWith(".apk"))
                                         FunctionUtils.installNormal(activity, file.getPath());
                                 }
 
@@ -112,7 +117,8 @@ public class AndroidToJSApi {
     }
 
     @JavascriptInterface
-    public void sweepQrCode(){
+    public String sweepQrCode(){
+        final ACache aCache = ACache.get(activity);
         rxPermissions.request(Manifest.permission.CAMERA)
                 .subscribe(new Consumer<Boolean>() {
                     @Override
@@ -125,10 +131,18 @@ public class AndroidToJSApi {
                 }, new Consumer<Throwable>() {
                     @Override
                     public void accept(Throwable throwable) throws Exception {
-
+                        aCache.put(Config.aceche_Qrcode,"-1");
                     }
                 });
-
+        String qrcode = null;
+        while (true){
+            qrcode = aCache.getAsString(Config.aceche_Qrcode);
+            if (!TextUtils.isEmpty(qrcode)&&qrcode.equals("-1")){
+                aCache.remove(Config.aceche_Qrcode);
+                break;
+            }
+        }
+        return qrcode;
     }
 
     @JavascriptInterface
@@ -158,5 +172,19 @@ public class AndroidToJSApi {
     @JavascriptInterface
     public void clearCache(){
 
+    }
+
+    @JavascriptInterface
+    public String getPosition(){
+        activity.satrtLocation();
+        ACache aCache = ACache.get(activity);
+        String location = null;
+        while (true){
+            location = aCache.getAsString(Config.aceche_lastLocation);
+            if (!TextUtils.isEmpty(location)){
+                break;
+            }
+        }
+        return location;
     }
 }

@@ -10,7 +10,7 @@ import java.io.File;
 
 public class Config {
 
-    public static String home_url = "http://111.72.252.163:8090/mobile/page/gude.jsp";
+    public static String home_url = "http://111.72.252.163:8090/mobile/page/gude.jsp";//http://10.145.172.12/mobile/page/gude.jsp
 
     public static String message_url = "http://111.72.252.163:8090/framework/query.do?search&k=b_m_message";
 
@@ -19,6 +19,10 @@ public class Config {
     public static String file_download = file_home+"/download";
 
     public static String tag_download = "tag_download";
+
+    public static String aceche_lastLocation = "lastLocation";
+
+    public static String aceche_Qrcode = "Qrcode";
 
     public static File getFileHome(){
         File file = new File(SDCardUtils.getSDCardPath()+file_home);

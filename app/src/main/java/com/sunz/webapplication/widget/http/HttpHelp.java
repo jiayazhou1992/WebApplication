@@ -82,11 +82,12 @@ public class HttpHelp {
                     @Override
                     public void accept(Response o) throws Exception {
                         if (o!=null&&o.body()!=null){
-                            //Log.i("httphelp","1-------"+o.body().string());
+                            String requslt = o.body().string();
+                            Log.i("httphelp","1-------"+requslt);
                             Gson gson = new Gson();
                             NewMessageBean newMessageBean=null;
                             try {
-                                newMessageBean = gson.fromJson(o.body().string(), NewMessageBean.class);
+                                newMessageBean = gson.fromJson(requslt, NewMessageBean.class);
                             }catch (JsonSyntaxException e){
                                 Log.e("gson","------"+e.getMessage());
                             }

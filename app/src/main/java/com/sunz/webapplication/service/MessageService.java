@@ -88,7 +88,7 @@ public class MessageService extends Service {
             int i = 100;
             Log.i("showNotification","2-----------showNotification");
             for (NewMessageBean.DataBean dataBean : newMessageBean.getData()) {
-                if (aCache.getAsObject(dataBean.getId())==null&&(!dataBean.getReadtime().equals("null")||TextUtils.isEmpty(dataBean.getReadtime()))) {
+                if (aCache.getAsObject(dataBean.getId())==null) {//&&(!dataBean.getReadtime().equals("null")||TextUtils.isEmpty(dataBean.getReadtime()))
                     NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext());
                     builder.setContentTitle(dataBean.getMsgtitle());
                     builder.setSmallIcon(R.mipmap.ic_launcher_round);

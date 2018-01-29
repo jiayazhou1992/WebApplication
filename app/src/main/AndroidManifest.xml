@@ -33,7 +33,8 @@
         android:theme="@style/AppTheme">
         <activity android:name="com.sunz.webapplication.ui.activity.HomeActivity"
             android:windowSoftInputMode="adjustResize"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

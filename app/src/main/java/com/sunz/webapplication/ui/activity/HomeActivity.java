@@ -13,6 +13,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
+import android.webkit.GeolocationPermissions;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -24,12 +26,15 @@ import android.widget.Toast;
 import com.baidu.location.BDAbstractLocationListener;
 import com.baidu.location.BDLocation;
 import com.baidu.location.LocationClient;
+import com.baidu.location.LocationClientOption;
+import com.google.gson.Gson;
 import com.sunz.webapplication.R;
 import com.sunz.webapplication.config.Config;
 import com.sunz.webapplication.model.webview.AndroidToJSApi;
 import com.sunz.webapplication.model.webview.MyWebChromeClient;
 import com.sunz.webapplication.presenter.HomePresenter;
 import com.sunz.webapplication.service.MessageService;
+import com.sunz.webapplication.utils.ACache;
 import com.sunz.webapplication.widget.window.SetVpnWindow;
 import com.tbruyelle.rxpermissions2.RxPermissions;
 import com.topsec.sslvpn.IVPNHelper;
@@ -39,6 +44,10 @@ import com.uuzuche.lib_zxing.activity.CodeUtils;
 import io.reactivex.functions.Consumer;
 
 public class HomeActivity extends AppCompatActivity {
+
+    private String[] PERMISSIONS_CONTACT = {Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.READ_PHONE_STATE};
 
     private final int FILE_CHOOSER_RESULT_CODE = 1;//选择文件
     public final int SWEEP_QRCODE = 2;//扫描二维码
@@ -57,9 +66,12 @@ public class HomeActivity extends AppCompatActivity {
         setContentView(R.layout.activity_home);
 
         locationClient = new LocationClient(getApplicationContext());
+        locationClient.setLocOption(initLocationClientOption());
         locationClient.registerLocationListener(new MyLocationListener());
         homePresenter = new HomePresenter(this);
         ivpnHelper = VPNService.getVPNInstance(getApplicationContext());
+        if (ivpnHelper!=null)
+            ivpnHelper.startService();
 
         webView = (WebView) findViewById(R.id.home_webview);
         webView.setHorizontalScrollBarEnabled(false);//水平不显示
@@ -67,34 +79,9 @@ public class HomeActivity extends AppCompatActivity {
         initWebviewSettings(webView);
         initWebViewClient(webView);
         initWebChromeClient(webView);
+        initDownloadListener(webView);
         addAndroidToJSApi(webView);
 
-        RxPermissions rxPermissions = new RxPermissions(HomeActivity.this);
-        rxPermissions.request(Manifest.permission.ACCESS_FINE_LOCATION
-                ,Manifest.permission.ACCESS_COARSE_LOCATION
-                ,Manifest.permission.ACCESS_WIFI_STATE
-                ,Manifest.permission.ACCESS_NETWORK_STATE
-                ,Manifest.permission.CHANGE_NETWORK_STATE
-                ,Manifest.permission.CHANGE_WIFI_STATE
-                ,Manifest.permission.READ_PHONE_STATE
-                ,Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS
-                ,Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ,Manifest.permission.CAMERA
-                ,Manifest.permission.INTERNET)
-                .subscribe(new Consumer<Boolean>() {
-                    @Override
-                    public void accept(Boolean aBoolean) throws Exception {
-                        if (aBoolean){
-                            locationClient.enableAssistantLocation(webView);
-                            ivpnHelper.startService(HomeActivity.this,null);
-                        }
-                    }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Exception {
-
-                    }
-                });
         webView.post(new Runnable() {
             @Override
             public void run() {
@@ -112,6 +99,7 @@ public class HomeActivity extends AppCompatActivity {
 
             }
         });
+        //webView.loadUrl(Config.home_url);
 
     }
 
@@ -139,6 +127,7 @@ public class HomeActivity extends AppCompatActivity {
         settings.setLoadsImagesAutomatically(true); //支持自动加载图片
         settings.setDefaultTextEncodingName("utf-8");//设置编码格式
         settings.setDomStorageEnabled(true);
+        settings.setGeolocationEnabled(true);
     }
 
     private void initWebViewClient(final WebView webView){
@@ -209,8 +198,24 @@ public class HomeActivity extends AppCompatActivity {
             public void onProgressChanged(WebView view, int newProgress) {
                 super.onProgressChanged(view, newProgress);
             }
+
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                callback.invoke(origin,true,false);
+                Log.i("location","----------------3");
+                super.onGeolocationPermissionsShowPrompt(origin, callback);
+            }
         };
         webView.setWebChromeClient(myWebChromeClient);
+    }
+
+    private void initDownloadListener(WebView webView){
+        webView.setDownloadListener(new DownloadListener() {
+            @Override
+            public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
+                androidToJSApi.download(url);
+            }
+        });
     }
 
     private void addAndroidToJSApi(WebView webView){
@@ -243,7 +248,9 @@ public class HomeActivity extends AppCompatActivity {
             webView = null;
         }
 
-        locationClient.disableAssistantLocation();
+        //locationClient.disableAssistantLocation();
+        if (locationClient.isStarted())
+            locationClient.stop();
         if (SetVpnWindow.isLogin&&ivpnHelper!=null) {
             ivpnHelper.logoutVOne();
             SetVpnWindow.isLogin = false;
@@ -262,7 +269,8 @@ public class HomeActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        ivpnHelper.toGrantStartVpnService(requestCode);
+        if (ivpnHelper!=null)
+            ivpnHelper.toGrantStartVpnService(requestCode);
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER_RESULT_CODE) {
             if (null == myWebChromeClient.getUploadMessage() && null == myWebChromeClient.getUploadMessageAboveL()) return;
@@ -282,9 +290,13 @@ public class HomeActivity extends AppCompatActivity {
                 }
                 if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_SUCCESS) {
                     String result = bundle.getString(CodeUtils.RESULT_STRING);
+                    ACache aCache = ACache.get(HomeActivity.this);
+                    aCache.put(Config.aceche_Qrcode,result);
                     Toast.makeText(this, "解析结果:" + result, Toast.LENGTH_LONG).show();
                 } else if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_FAILED) {
                     Toast.makeText(this, "解析二维码失败", Toast.LENGTH_LONG).show();
+                    ACache aCache = ACache.get(HomeActivity.this);
+                    aCache.put(Config.aceche_Qrcode,"-1");
                 }
             }
         }
@@ -317,14 +329,14 @@ public class HomeActivity extends AppCompatActivity {
     // 退出时间
     private long currentBackPressedTime = 0;
     // 退出间隔
-    private static final int BACK_PRESSED_INTERVAL = 2000;
+    private static final int BACK_PRESSED_INTERVAL = 3000;
     //重写onBackPressed()方法,继承自退出的方法
     @Override
     public void onBackPressed() {
-        /*if (webView.canGoBack()){
+        if (webView.canGoBack()&&System.currentTimeMillis()- currentBackPressedTime > BACK_PRESSED_INTERVAL){
             webView.goBack();
             return;
-        }*/
+        }
         // 判断时间间隔
         if (System.currentTimeMillis()- currentBackPressedTime > BACK_PRESSED_INTERVAL) {
             currentBackPressedTime = System.currentTimeMillis();
@@ -335,11 +347,89 @@ public class HomeActivity extends AppCompatActivity {
         }
     }
 
+    //初始化百度
+    private LocationClientOption initLocationClientOption(){
+        LocationClientOption option = new LocationClientOption();
+
+        option.setLocationMode(LocationClientOption.LocationMode.Hight_Accuracy);
+        //可选，设置定位模式，默认高精度
+        //LocationMode.Hight_Accuracy：高精度；
+        //LocationMode. Battery_Saving：低功耗；
+        //LocationMode. Device_Sensors：仅使用设备；
+
+        option.setCoorType("gcj02");
+        //可选，设置返回经纬度坐标类型，默认gcj02
+        //gcj02：国测局坐标；
+        //bd09ll：百度经纬度坐标；
+        //bd09：百度墨卡托坐标；
+        //海外地区定位，无需设置坐标类型，统一返回wgs84类型坐标
+
+        option.setScanSpan(10000);
+        //可选，设置发起定位请求的间隔，int类型，单位ms
+        //如果设置为0，则代表单次定位，即仅定位一次，默认为0
+        //如果设置非0，需设置1000ms以上才有效
+
+        option.setOpenGps(true);
+        //可选，设置是否使用gps，默认false
+        //使用高精度和仅用设备两种定位模式的，参数必须设置为true
+
+        option.setLocationNotify(true);
+        //可选，设置是否当GPS有效时按照1S/1次频率输出GPS结果，默认false
+
+        option.setIgnoreKillProcess(false);
+        //可选，定位SDK内部是一个service，并放到了独立进程。
+        //设置是否在stop的时候杀死这个进程，默认（建议）不杀死，即setIgnoreKillProcess(true)
+
+        option.SetIgnoreCacheException(false);
+        //可选，设置是否收集Crash信息，默认收集，即参数为false
+
+        option.setWifiCacheTimeOut(5*60*1000);
+        //可选，7.2版本新增能力
+        //如果设置了该接口，首次启动定位时，会先判断当前WiFi是否超出有效期，若超出有效期，会先重新扫描WiFi，然后定位
+
+        option.setEnableSimulateGps(false);
+        //可选，设置是否需要过滤GPS仿真结果，默认需要，即参数为false
+        option.setIsNeedAddress(true);
+        option.setIsNeedLocationDescribe(true);
+        return option;
+    }
+
     private class MyLocationListener extends BDAbstractLocationListener{
 
         @Override
         public void onReceiveLocation(BDLocation bdLocation) {
-
+            if (bdLocation!= null){
+                ACache aCache = ACache.get(HomeActivity.this);
+                Gson gson = new Gson();
+                String location = gson.toJson(bdLocation);
+                Log.i("location",location);
+                aCache.put(Config.aceche_lastLocation,location);
+                locationClient.stop();
+            }
         }
+    }
+
+    public void satrtLocation(){
+        RxPermissions rxPermissions = new RxPermissions(HomeActivity.this);
+        rxPermissions.request(PERMISSIONS_CONTACT)
+                .subscribe(new Consumer<Boolean>() {
+                    @Override
+                    public void accept(Boolean aBoolean) throws Exception {
+                        if (aBoolean){
+                            Log.i("location","-----------1");
+                            //locationClient.enableAssistantLocation(webView);
+                            if (!locationClient.isStarted())
+                                locationClient.start();
+                            //ivpnHelper.startService(HomeActivity.this,null);
+                        }else {
+                            Log.i("location","-----------2");
+                        }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+
+                    }
+                });
     }
 }

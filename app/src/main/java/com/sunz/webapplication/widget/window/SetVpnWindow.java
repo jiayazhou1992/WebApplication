@@ -68,6 +68,8 @@ public class SetVpnWindow {
                     WindowManager.LayoutParams params = activity.getWindow().getAttributes();
                     params.alpha = 1.0f;
                     activity.getWindow().setAttributes(params);
+                    if (onCancleListener!=null)
+                        onCancleListener.onCancle();
                 }
             }
         });
