@@ -69,7 +69,7 @@ public class HomeActivity extends AppCompatActivity {
         locationClient.setLocOption(initLocationClientOption());
         locationClient.registerLocationListener(new MyLocationListener());
         homePresenter = new HomePresenter(this);
-        //ivpnHelper = VPNService.getVPNInstance(getApplicationContext());
+        ivpnHelper = VPNService.getVPNInstance(getApplicationContext());
         if (ivpnHelper!=null)
             ivpnHelper.startService();
 
@@ -82,7 +82,7 @@ public class HomeActivity extends AppCompatActivity {
         initDownloadListener(webView);
         addAndroidToJSApi(webView);
 
-        /*webView.post(new Runnable() {
+        webView.post(new Runnable() {
             @Override
             public void run() {
                 homePresenter.showVpn(webView, new SetVpnWindow.OnClickListener() {
@@ -98,8 +98,8 @@ public class HomeActivity extends AppCompatActivity {
                 });
 
             }
-        });*/
-        webView.loadUrl(Config.home_url);
+        });
+        //webView.loadUrl(Config.home_url);
 
     }
 
@@ -122,12 +122,16 @@ public class HomeActivity extends AppCompatActivity {
 
         //其他细节操作
         settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK); //关闭webview中缓存
+        settings.setAppCacheEnabled(true);
+        settings.setAppCachePath(getCacheDir().getPath());
         settings.setAllowFileAccess(true); //设置可以访问文件
         settings.setJavaScriptCanOpenWindowsAutomatically(true); //支持通过JS打开新窗口
         settings.setLoadsImagesAutomatically(true); //支持自动加载图片
         settings.setDefaultTextEncodingName("utf-8");//设置编码格式
         settings.setDomStorageEnabled(true);
         settings.setGeolocationEnabled(true);
+        if (Build.VERSION.SDK_INT>15)
+            settings.setAllowUniversalAccessFromFileURLs(true);
     }
 
     private void initWebViewClient(final WebView webView){
@@ -187,7 +191,7 @@ public class HomeActivity extends AppCompatActivity {
 
             @Override
             public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-                super.onReceivedSslError(view, handler, error);
+                handler.proceed();
             }
         });
     }
@@ -223,18 +227,22 @@ public class HomeActivity extends AppCompatActivity {
         webView.addJavascriptInterface(androidToJSApi,"app");
     }
 
+    public void clearCache(){
+        webView.clearCache(true);
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        webView.onResume();
-        webView.resumeTimers();
+        //webView.onResume();
+        //webView.resumeTimers();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        webView.onPause();
-        webView.pauseTimers();
+        //webView.onPause();
+        //webView.pauseTimers();
     }
 
     @Override
@@ -293,7 +301,7 @@ public class HomeActivity extends AppCompatActivity {
                 if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_SUCCESS) {
                     String result = bundle.getString(CodeUtils.RESULT_STRING);
                     aCache.put(Config.aceche_Qrcode,result);
-                    Toast.makeText(this, "解析结果:" + result, Toast.LENGTH_LONG).show();
+                    //Toast.makeText(this, "解析结果:" + result, Toast.LENGTH_LONG).show();
                 } else if (bundle.getInt(CodeUtils.RESULT_TYPE) == CodeUtils.RESULT_FAILED) {
                     Toast.makeText(this, "解析二维码失败", Toast.LENGTH_LONG).show();
                     aCache.put(Config.aceche_Qrcode,"-1");
@@ -301,6 +309,9 @@ public class HomeActivity extends AppCompatActivity {
             }else {
                 aCache.put(Config.aceche_Qrcode,"-1");
             }
+        }else if (requestCode == SWEEP_QRCODE&&resultCode != RESULT_OK){
+            ACache aCache = ACache.get(HomeActivity.this);
+            aCache.put(Config.aceche_Qrcode,"-1");
         }
     }
 
@@ -359,7 +370,7 @@ public class HomeActivity extends AppCompatActivity {
         //LocationMode. Battery_Saving：低功耗；
         //LocationMode. Device_Sensors：仅使用设备；
 
-        option.setCoorType("gcj02");
+        option.setCoorType("wgs84");
         //可选，设置返回经纬度坐标类型，默认gcj02
         //gcj02：国测局坐标；
         //bd09ll：百度经纬度坐标；

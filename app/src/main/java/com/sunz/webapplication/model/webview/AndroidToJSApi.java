@@ -119,7 +119,7 @@ public class AndroidToJSApi {
     @JavascriptInterface
     public String sweepQrCode(){
         final ACache aCache = ACache.get(activity);
-        rxPermissions.request(Manifest.permission.CAMERA)
+        rxPermissions.request(Manifest.permission.CAMERA,Manifest.permission.VIBRATE)
                 .subscribe(new Consumer<Boolean>() {
                     @Override
                     public void accept(Boolean aBoolean) throws Exception {
@@ -137,7 +137,9 @@ public class AndroidToJSApi {
         String qrcode = null;
         while (true){
             qrcode = aCache.getAsString(Config.aceche_Qrcode);
-            if (!TextUtils.isEmpty(qrcode)&&qrcode.equals("-1")){
+            if (!TextUtils.isEmpty(qrcode)){
+                if (qrcode.equals("-1"))
+                    qrcode = null;
                 aCache.remove(Config.aceche_Qrcode);
                 break;
             }
@@ -171,7 +173,12 @@ public class AndroidToJSApi {
 
     @JavascriptInterface
     public void clearCache(){
-
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                activity.clearCache();
+            }
+        });
     }
 
     @JavascriptInterface
@@ -179,10 +186,15 @@ public class AndroidToJSApi {
         activity.satrtLocation();
         ACache aCache = ACache.get(activity);
         String location = null;
-        while (true){
+        for (int i = 0;i<10;i++){
             location = aCache.getAsString(Config.aceche_lastLocation);
             if (!TextUtils.isEmpty(location)){
                 break;
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
         return location;

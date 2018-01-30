@@ -10,7 +10,7 @@ import java.io.File;
 
 public class Config {
 
-    public static String home_url = "http://111.72.252.163:8090/mobile/page/gude.jsp";//http://10.145.172.12/mobile/page/gude.jsp
+    public static String home_url = "http://10.145.172.12/mobile/page/gude.jsp";//http://111.72.252.163:8090/mobile/page/gude.jsp
 
     public static String message_url = "http://111.72.252.163:8090/framework/query.do?search&k=b_m_message";
 
